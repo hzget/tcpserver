@@ -1,9 +1,9 @@
 package tcpserver
 
 import (
-	"net"
-	"log"
 	"io"
+	"log"
+	"net"
 )
 
 type Conn interface {
@@ -12,23 +12,22 @@ type Conn interface {
 	TCPConn() *net.TCPConn
 	ConnId() uint32
 	RemoteAddr() net.Addr
+	Router() Router
 }
-
-type HandlerFunc func(*net.TCPConn, []byte, int) error
 
 type Connection struct {
-	conn *net.TCPConn
-	id uint32
+	conn     *net.TCPConn
+	id       uint32
 	isClosed bool
-	handler HandlerFunc
+	router   Router
 }
 
-func NewConnection(conn *net.TCPConn, id uint32, handler HandlerFunc) *Connection {
+func NewConnection(conn *net.TCPConn, id uint32, router Router) Conn {
 	return &Connection{
-		conn: conn,
-		id: id,
+		conn:     conn,
+		id:       id,
 		isClosed: false,
-		handler: handler,
+		router:   router,
 	}
 }
 
@@ -47,10 +46,19 @@ func (c *Connection) startReader() {
 		}
 		log.Printf("conn [%d] read %d bytes %v %q", c.id, cnt, in[:cnt], string(in[:cnt]))
 
-		if err := c.handler(c.conn, in, cnt); err != nil {
-	//		log.Printf("conn [%d] handler failed %v", c.id, err)
+		req := NewRequest(c, in[:cnt])
+
+		if err := c.router.PreHandle(req); err != nil {
+			log.Printf("conn [%d] PreHandle failed %v", c.id, err)
+		}
+		if err := c.router.Handle(req); err != nil {
+			log.Printf("conn [%d] Handle failed %v", c.id, err)
 			break
 		}
+		if err := c.router.PostHandle(req); err != nil {
+			log.Printf("conn [%d] PostHandle failed %v", c.id, err)
+		}
+
 	}
 }
 
@@ -84,4 +92,8 @@ func (c *Connection) ConnId() uint32 {
 
 func (c *Connection) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
+}
+
+func (c *Connection) Router() Router {
+	return c.router
 }

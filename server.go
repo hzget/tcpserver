@@ -13,25 +13,23 @@ const (
 )
 
 type Server struct {
-	ln net.Listener
+	ln     net.Listener
+	router Router
 }
 
 func NewServer() *Server {
-	return &Server{}
+	return &Server{
+		router: nil,
+	}
 }
 
-func handler (conn *net.TCPConn, data []byte, size int) error {
-		cnt, err := conn.Write(data[:size])
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		log.Printf("write %d bytes %v %q\n", cnt, data[:cnt], string(data[:cnt]))
-		time.Sleep(1*time.Second)
-		return nil
+func (s *Server) AddRouter(router Router) {
+	s.router = router
+	log.Println("Add router")
 }
 
 func (s *Server) Start() error {
+	log.Println("server start")
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Println(err)
@@ -48,8 +46,15 @@ func (s *Server) Start() error {
 			// handle error
 			continue
 		}
-//		go handleConnectionInteractive(conn)
-		c := NewConnection(conn.(*net.TCPConn), cid, handler)
+		/*
+					    v1.0: handle conn with a handler
+			            	go handleConnectionInteractive(conn)
+						v1.1: bind a conn with a handler
+			            	c := NewConnection(conn.(*net.TCPConn), cid, handler)
+						v1.2: a request combines a conn and its data
+						      and a router is registered to handle the request
+		*/
+		c := NewConnection(conn.(*net.TCPConn), cid, s.router)
 		cid++
 		go c.Start()
 	}
