@@ -34,7 +34,7 @@ func (s *Server) Start() error {
 			// handle error
 			continue
 		}
-		go handleConnection(conn)
+		go handleConnectionInteractive(conn)
 	}
 }
 
@@ -47,6 +47,48 @@ func (s *Server) Shutdown() error {
 		return s.ln.Close()
 	}
 	return nil
+}
+
+/*
+ In the interactive mode (read-write-read-write-...),
+ need to read all msg in the kernel read buffer via
+ 1. for-loop
+ 2. msg-len flag at the beginning of the msg
+ 3. stop reading via eof or msg-len
+
+ after that, move on and write the response.
+
+*/
+
+// echo all msg to the client
+func handleConnectionInteractive(conn net.Conn) {
+	in := make([]byte, ReadBuffSize)
+	defer conn.Close()
+
+	remoteaddr := conn.RemoteAddr()
+	log.Println("get conn from:", remoteaddr.String())
+
+	for {
+		cnt, err := conn.Read(in)
+		if err == io.EOF {
+			log.Println("get EOF")
+			break
+		}
+		if err != nil {
+			log.Println(err)
+			break
+		}
+		log.Println("read", cnt, "bytes:", in[:cnt], string(in[:cnt]))
+
+		wcnt, err := conn.Write(in[:cnt])
+		if err != nil {
+			log.Println(err)
+			break
+		}
+		log.Println("write", wcnt, "bytes:", in[:wcnt], string(in[:wcnt]))
+
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // echo all msg to the client
