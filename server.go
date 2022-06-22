@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	ReadBuffSize = 7
+	ReadBuffSize = 127
 	ReadTimeout  = 3 * time.Second
 )
 
@@ -20,6 +20,17 @@ func NewServer() *Server {
 	return &Server{}
 }
 
+func handler (conn *net.TCPConn, data []byte, size int) error {
+		cnt, err := conn.Write(data[:size])
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		log.Printf("write %d bytes %v %q\n", cnt, data[:cnt], string(data[:cnt]))
+		time.Sleep(1*time.Second)
+		return nil
+}
+
 func (s *Server) Start() error {
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -27,6 +38,9 @@ func (s *Server) Start() error {
 		return err
 	}
 	s.ln = ln
+
+	cid := uint32(1)
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -34,7 +48,10 @@ func (s *Server) Start() error {
 			// handle error
 			continue
 		}
-		go handleConnectionInteractive(conn)
+//		go handleConnectionInteractive(conn)
+		c := NewConnection(conn.(*net.TCPConn), cid, handler)
+		cid++
+		go c.Start()
 	}
 }
 
