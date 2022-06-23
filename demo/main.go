@@ -27,6 +27,6 @@ func (p *pingRouter) Handle(request *tcpserver.Request) error {
 
 func main() {
 	s := tcpserver.NewServer()
-	s.AddRouter(&pingRouter{})
+	//	s.AddRouter(&pingRouter{})
 	s.Serve()
 }

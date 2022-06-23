@@ -17,7 +17,8 @@ func main() {
 	conn := c.(*net.TCPConn)
 	defer conn.Close()
 
-	s := "GET / HTTP/1.0\r\n\r\n"
+	//s := "GET / HTTP/1.0\r\n\r\n"
+	s := string([]byte{9, 0, 0, 0, 1, 0, 0, 0, 'h', 'e', 'l', 'l', 'o'})
 
 	for {
 		log.Printf("send msg to the server: %q\n", s)

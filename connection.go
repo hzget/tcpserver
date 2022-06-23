@@ -1,7 +1,7 @@
 package tcpserver
 
 import (
-	"io"
+	"bytes"
 	"log"
 	"net"
 	"time"
@@ -19,6 +19,7 @@ type Conn interface {
 	ConnId() uint32
 	RemoteAddr() net.Addr
 	Router() Router
+	SendMsg(msg Message) (int, error)
 }
 
 type Connection struct {
@@ -38,21 +39,23 @@ func NewConnection(conn *net.TCPConn, id uint32, router Router) Conn {
 }
 
 func (c *Connection) startReader() {
-	in := make([]byte, config.tcpserver.readbuffsize)
-
+	p := &packer{}
 	for {
-		cnt, err := c.conn.Read(in)
-		if err == io.EOF {
-			log.Printf("conn [%d] get EOF", c.id)
-			break
-		}
+		tdata, err := p.UnPackTcp(c.conn)
 		if err != nil {
-			log.Printf("conn [%d] read failed %v", c.id, err)
+			log.Printf("conn [%d] unpacktcp failed %v", c.id, err)
 			break
 		}
-		log.Printf("conn [%d] read %d bytes %v %q", c.id, cnt, in[:cnt], string(in[:cnt]))
+		log.Printf("conn [%d] read %d bytes %v", c.id, tdata.Size(), tdata.Data())
 
-		req := NewRequest(c, in[:cnt])
+		msg, err := p.UnPackMessage(bytes.NewBuffer(tdata.Data()))
+		if err != nil {
+			log.Printf("conn [%d] unpackmessage failed %v", c.id, err)
+			break
+		}
+		log.Printf("conn [%d] msg %#v (data=%q)", c.id, msg, string(msg.Data()))
+
+		req := NewRequest(c, msg)
 
 		if err := c.router.PreHandle(req); err != nil {
 			log.Printf("conn [%d] PreHandle failed %v", c.id, err)
@@ -102,4 +105,21 @@ func (c *Connection) RemoteAddr() net.Addr {
 
 func (c *Connection) Router() Router {
 	return c.router
+}
+
+func (c *Connection) SendMsg(msg Message) (int, error) {
+
+	p := &packer{}
+	data, err := p.Pack(msg)
+	if err != nil {
+		return 0, err
+	}
+
+	cnt, err := c.TCPConn().Write(data)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+
+	return cnt, nil
 }

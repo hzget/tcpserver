@@ -7,19 +7,19 @@ import (
 
 type Request struct {
 	conn Conn
-	data []byte
+	msg  Message
 }
 
-func NewRequest(conn *Connection, data []byte) *Request {
-	return &Request{conn, data}
+func NewRequest(conn *Connection, msg Message) *Request {
+	return &Request{conn, msg}
 }
 
 func (r *Request) Conn() Conn {
 	return r.conn
 }
 
-func (r *Request) Data() []byte {
-	return r.data
+func (r *Request) Msg() Message {
+	return r.msg
 }
 
 type Router interface {
@@ -38,14 +38,14 @@ func (r *BaseRouter) PreHandle(request *Request) error {
 
 func (r *BaseRouter) Handle(request *Request) error {
 	conn := request.Conn()
-	data := request.Data()
-	cnt, err := conn.TCPConn().Write(data)
+	msg := request.Msg()
+	cnt, err := conn.SendMsg(msg)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	log.Printf("BaseRouter - conn [%d] write %d bytes %v: %q",
-		conn.ConnId(), cnt, data[:cnt], string(data[:cnt]))
+	log.Printf("BaseRouter - conn [%d] write %d bytes Msg %v",
+		conn.ConnId(), cnt, msg)
 	time.Sleep(time.Second)
 
 	return nil
