@@ -4,6 +4,12 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
+)
+
+const (
+	ReadBuffSize = 127
+	ReadTimeout  = 3 * time.Second
 )
 
 type Conn interface {
@@ -32,7 +38,7 @@ func NewConnection(conn *net.TCPConn, id uint32, router Router) Conn {
 }
 
 func (c *Connection) startReader() {
-	in := make([]byte, ReadBuffSize)
+	in := make([]byte, config.tcpserver.readbuffsize)
 
 	for {
 		cnt, err := c.conn.Read(in)
@@ -63,7 +69,7 @@ func (c *Connection) startReader() {
 }
 
 func (c *Connection) Start() {
-	log.Printf("conn start [%d] %s", c.ConnId(), c.RemoteAddr().String())
+	log.Printf("conn [%d] start %s", c.ConnId(), c.RemoteAddr().String())
 	defer c.Stop()
 
 	c.startReader()
@@ -76,7 +82,7 @@ func (c *Connection) Stop() {
 		return
 	}
 
-	log.Printf("conn stop [%d] %s", c.ConnId(), c.RemoteAddr().String())
+	log.Printf("conn [%d] stop %s", c.ConnId(), c.RemoteAddr().String())
 
 	c.conn.Close()
 	c.isClosed = true

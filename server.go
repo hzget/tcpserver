@@ -1,15 +1,11 @@
 package tcpserver
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"time"
-)
-
-const (
-	ReadBuffSize = 127
-	ReadTimeout  = 3 * time.Second
 )
 
 type Server struct {
@@ -29,8 +25,12 @@ func (s *Server) AddRouter(router Router) {
 }
 
 func (s *Server) Start() error {
-	log.Println("server start")
-	ln, err := net.Listen("tcp", ":8080")
+	log.Println("tcpserver is starting...")
+	if s.router == nil {
+		s.router = &BaseRouter{}
+	}
+	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
+		config.tcpserver.host, config.tcpserver.port))
 	if err != nil {
 		log.Println(err)
 		return err
@@ -47,11 +47,11 @@ func (s *Server) Start() error {
 			continue
 		}
 		/*
-					    v1.0: handle conn with a handler
+					    v1.0: handle tcpconn with a handler
 			            	go handleConnectionInteractive(conn)
-						v1.1: bind a conn with a handler
+						v1.1: bind a tcpconn with a handler
 			            	c := NewConnection(conn.(*net.TCPConn), cid, handler)
-						v1.2: a request combines a conn and its data
+						v1.2: a request combines a connection and its data
 						      and a router is registered to handle the request
 		*/
 		c := NewConnection(conn.(*net.TCPConn), cid, s.router)
