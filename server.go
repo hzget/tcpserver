@@ -9,34 +9,29 @@ import (
 )
 
 type Server struct {
-	ln     net.Listener
-	router Router
+	handler MsgHandler
 }
 
 func NewServer() *Server {
-	return &Server{
-		router: nil,
+	s := &Server{
+		handler: NewMsgHandler(),
 	}
+	s.AddBasicRouters()
+	return s
 }
 
-func (s *Server) AddRouter(router Router) {
-	s.router = router
-	log.Println("Add router")
+func (s *Server) AddRouter(msgId uint32, router Router) {
+	s.handler.AddRouter(msgId, router)
 }
 
 func (s *Server) Start() error {
 	log.Println("tcpserver is starting...")
-	if s.router == nil {
-		s.router = &BaseRouter{}
-	}
 	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
 		config.tcpserver.host, config.tcpserver.port))
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	s.ln = ln
-
 	cid := uint32(1)
 
 	for {
@@ -54,7 +49,7 @@ func (s *Server) Start() error {
 						v1.2: a request combines a connection and its data
 						      and a router is registered to handle the request
 		*/
-		c := NewConnection(conn.(*net.TCPConn), cid, s.router)
+		c := NewConnection(conn.(*net.TCPConn), cid, s.handler)
 		cid++
 		go c.Start()
 	}
@@ -65,10 +60,11 @@ func (s *Server) Serve() error {
 }
 
 func (s *Server) Shutdown() error {
-	if s.ln != nil {
-		return s.ln.Close()
-	}
 	return nil
+}
+
+func (s *Server) AddBasicRouters() {
+	s.AddRouter(1, NewBaseRouter())
 }
 
 /*

@@ -17,7 +17,7 @@ type Conn interface {
 	TCPConn() *net.TCPConn
 	ConnId() uint32
 	RemoteAddr() net.Addr
-	Router() Router
+	Msghandler() MsgHandler
 	SendMsg(msg Message) (int, error)
 }
 
@@ -25,15 +25,15 @@ type Connection struct {
 	conn     *net.TCPConn
 	id       uint32
 	isClosed bool
-	router   Router
+	handler  MsgHandler
 }
 
-func NewConnection(conn *net.TCPConn, id uint32, router Router) Conn {
+func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 	return &Connection{
 		conn:     conn,
 		id:       id,
 		isClosed: false,
-		router:   router,
+		handler:  mhr,
 	}
 }
 
@@ -56,17 +56,10 @@ func (c *Connection) startReader() {
 
 		req := NewRequest(c, msg)
 
-		if err := c.router.PreHandle(req); err != nil {
-			log.Printf("conn [%d] PreHandle failed %v", c.id, err)
-		}
-		if err := c.router.Handle(req); err != nil {
-			log.Printf("conn [%d] Handle failed %v", c.id, err)
+		if err := c.Msghandler().Handle(req); err != nil {
+			log.Println(err)
 			break
 		}
-		if err := c.router.PostHandle(req); err != nil {
-			log.Printf("conn [%d] PostHandle failed %v", c.id, err)
-		}
-
 	}
 }
 
@@ -102,8 +95,8 @@ func (c *Connection) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
-func (c *Connection) Router() Router {
-	return c.router
+func (c *Connection) Msghandler() MsgHandler {
+	return c.handler
 }
 
 func (c *Connection) SendMsg(msg Message) (int, error) {

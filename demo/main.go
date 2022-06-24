@@ -10,10 +10,9 @@ type pingRouter struct {
 	tcpserver.BaseRouter
 }
 
-func (p *pingRouter) Handle(request *tcpserver.Request) error {
-	conn := request.Conn()
-	msg := request.Msg()
-	msg.SetData([]byte("ping...pong...ping...pong..."))
+func (p *pingRouter) Handle(req tcpserver.Request) error {
+	conn := req.Conn()
+	msg := tcpserver.NewMessage(102, ([]byte("ping...pong...ping...pong...")))
 	cnt, err := conn.SendMsg(msg)
 	if err != nil {
 		log.Println(err)
@@ -28,6 +27,6 @@ func (p *pingRouter) Handle(request *tcpserver.Request) error {
 
 func main() {
 	s := tcpserver.NewServer()
-	//	s.AddRouter(&pingRouter{})
+	s.AddRouter(2, &pingRouter{})
 	s.Serve()
 }
