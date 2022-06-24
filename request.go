@@ -32,7 +32,7 @@ type BaseRouter struct {
 }
 
 func (r *BaseRouter) PreHandle(request *Request) error {
-	log.Println("BaseRouter - Prehandle")
+	//log.Println("BaseRouter - Prehandle")
 	return nil
 }
 
@@ -44,13 +44,13 @@ func (r *BaseRouter) Handle(request *Request) error {
 		log.Println(err)
 		return err
 	}
-	log.Printf("BaseRouter - conn [%d] write %d bytes Msg %v",
-		conn.ConnId(), cnt, msg)
+	log.Printf("conn [%d] BaseRouter - write %d bytes Msg %v, (data=%q)",
+		conn.ConnId(), cnt, msg, string(msg.Data()))
 	time.Sleep(time.Second)
 
 	return nil
 }
 func (r *BaseRouter) PostHandle(request *Request) error {
-	log.Println("BaseRouter - Posthandle")
+	//log.Println("BaseRouter - Posthandle")
 	return nil
 }

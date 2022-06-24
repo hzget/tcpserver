@@ -10,9 +10,9 @@ type Config struct {
 }
 
 type tcpserverconf struct {
-	host         string
-	port         uint32
-	readbuffsize uint32
+	host        string
+	port        uint32
+	maxpacksize uint32
 }
 
 // globals
@@ -37,9 +37,9 @@ func getConfig() {
 func initGlobals() {
 	config = &Config{
 		tcpserver: tcpserverconf{
-			host:         viper.GetString("tcpserver.host"),
-			port:         viper.GetUint32("tcpserver.port"),
-			readbuffsize: viper.GetUint32("tcpserver.readbuffsize"),
+			host:        viper.GetString("tcpserver.host"),
+			port:        viper.GetUint32("tcpserver.port"),
+			maxpacksize: viper.GetUint32("tcpserver.maxpacksize"),
 		},
 	}
 
@@ -49,5 +49,5 @@ func initGlobals() {
 func initDefault() {
 	viper.SetDefault("tcpserver.host", "tcpserver")
 	viper.SetDefault("tcpserver.port", 8080)
-	viper.SetDefault("tcpserver.readbuffsize", ReadBuffSize)
+	viper.SetDefault("tcpserver.maxpacksize", MaxPackSize)
 }

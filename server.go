@@ -84,7 +84,7 @@ func (s *Server) Shutdown() error {
 
 // echo all msg to the client
 func handleConnectionInteractive(conn net.Conn) {
-	in := make([]byte, ReadBuffSize)
+	in := make([]byte, MaxPackSize)
 	defer conn.Close()
 
 	remoteaddr := conn.RemoteAddr()
@@ -116,7 +116,7 @@ func handleConnectionInteractive(conn net.Conn) {
 // echo all msg to the client
 func handleConnection(conn net.Conn) {
 	var msg []byte
-	in := make([]byte, ReadBuffSize)
+	in := make([]byte, MaxPackSize)
 	defer conn.Close()
 
 	remoteaddr := conn.RemoteAddr()

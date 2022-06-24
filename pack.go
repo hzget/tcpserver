@@ -3,6 +3,7 @@ package tcpserver
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -10,7 +11,7 @@ type Packer interface {
 	PackTcp(tdata TcpData) ([]byte, error)
 	UnPackTcp(r io.Reader) (TcpData, error)
 	PackMessage(msg Message) ([]byte, error)
-	UnPackMessage(r io.Reader) (Message, error)
+	UnPackMessage(rawData []byte) (Message, error)
 
 	Pack(msg Message) ([]byte, error)
 	UnPack(r io.Reader) (Message, error)
@@ -18,7 +19,15 @@ type Packer interface {
 
 type packer struct{}
 
+func NewPacker() Packer {
+	return &packer{}
+}
+
 func (*packer) PackTcp(tdata TcpData) ([]byte, error) {
+
+	if !tdata.IsValid() {
+		return nil, fmt.Errorf("fail to pack invalid tcp data %v", tdata)
+	}
 
 	buf := bytes.NewBuffer([]byte{})
 	if err := binary.Write(buf, binary.LittleEndian, tdata.Size()); err != nil {
@@ -36,6 +45,10 @@ func (*packer) UnPackTcp(r io.Reader) (TcpData, error) {
 	var size uint32
 	if err := binary.Read(r, binary.LittleEndian, &size); err != nil {
 		return nil, err
+	}
+
+	if size > config.tcpserver.maxpacksize {
+		return nil, fmt.Errorf("packsize %d is too big", size)
 	}
 
 	var data = make([]byte, size)
@@ -59,8 +72,9 @@ func (*packer) PackMessage(msg Message) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (*packer) UnPackMessage(r io.Reader) (Message, error) {
+func (*packer) UnPackMessage(rawData []byte) (Message, error) {
 
+	r := bytes.NewBuffer(rawData)
 	var id uint32
 	if err := binary.Read(r, binary.LittleEndian, &id); err != nil {
 		return nil, err
@@ -92,5 +106,5 @@ func (p *packer) UnPack(r io.Reader) (Message, error) {
 		return nil, err
 	}
 
-	return p.UnPackMessage(bytes.NewBuffer(tdata.Data()))
+	return p.UnPackMessage(tdata.Data())
 }

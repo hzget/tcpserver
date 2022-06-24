@@ -1,15 +1,14 @@
 package tcpserver
 
 import (
-	"bytes"
 	"log"
 	"net"
 	"time"
 )
 
 const (
-	ReadBuffSize = 127
-	ReadTimeout  = 3 * time.Second
+	MaxPackSize = 256
+	ReadTimeout = 3 * time.Second
 )
 
 type Conn interface {
@@ -48,12 +47,12 @@ func (c *Connection) startReader() {
 		}
 		log.Printf("conn [%d] read %d bytes %v", c.id, tdata.Size(), tdata.Data())
 
-		msg, err := p.UnPackMessage(bytes.NewBuffer(tdata.Data()))
+		msg, err := p.UnPackMessage(tdata.Data())
 		if err != nil {
 			log.Printf("conn [%d] unpackmessage failed %v", c.id, err)
 			break
 		}
-		log.Printf("conn [%d] msg %#v (data=%q)", c.id, msg, string(msg.Data()))
+		log.Printf("conn [%d] msg %v (data=%q)", c.id, msg, string(msg.Data()))
 
 		req := NewRequest(c, msg)
 

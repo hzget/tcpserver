@@ -90,7 +90,7 @@ func TestUnPackMessage(t *testing.T) {
 
 	p := &packer{}
 	for _, v := range cases {
-		out, err := p.UnPackMessage(bytes.NewBuffer(v.in))
+		out, err := p.UnPackMessage(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}

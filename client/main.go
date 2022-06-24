@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 func main() {
@@ -18,11 +19,13 @@ func main() {
 	defer conn.Close()
 
 	//s := "GET / HTTP/1.0\r\n\r\n"
-	s := string([]byte{9, 0, 0, 0, 1, 0, 0, 0, 'h', 'e', 'l', 'l', 'o'})
+	b1 := []byte{9, 0, 0, 0, 1, 0, 0, 0, 'h', 'e', 'l', 'l', 'o'}
+	b2 := []byte{7, 0, 0, 0, 1, 0, 0, 0, 'w', 'h', 'o'}
+	s := append(b1, b2...)
 
 	for {
-		log.Printf("send msg to the server: %q\n", s)
-		fmt.Fprintf(conn, s)
+		log.Printf("send msg to the server: %v\n", s)
+		fmt.Fprintf(conn, string(s))
 		if err != nil {
 			log.Println(err)
 			return
@@ -39,6 +42,7 @@ func main() {
 			break
 		}
 		log.Println("read", cnt, "bytes msg:", in[:cnt], string(in[:cnt]))
+		time.Sleep(20*time.Second)
 	}
 }
 

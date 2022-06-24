@@ -5,6 +5,7 @@ type TcpData interface {
 	Data() []byte
 	SetSize(size uint32)
 	SetData(data []byte)
+	IsValid() bool
 }
 
 //  tcpdata:   size + data
@@ -30,6 +31,19 @@ func (tdata *tcpdata) SetData(data []byte) {
 	tdata.data = data
 }
 
+func (tdata *tcpdata) IsValid() bool {
+	if tdata.size < 1 {
+		return false
+	}
+
+	// attention: will int overflows uint32?
+	if tdata.size != uint32(len(tdata.data)) {
+		return false
+	}
+
+	return true
+}
+
 type Message interface {
 	Id() uint32
 	Data() []byte
@@ -37,9 +51,14 @@ type Message interface {
 	SetData(data []byte)
 }
 
+// tcpdata.data --> msg.id + msg.data
 type message struct {
 	id   uint32
 	data []byte
+}
+
+func NewMessage(id uint32, data []byte) Message {
+	return &message{id, data}
 }
 
 func (msg *message) Id() uint32 {
