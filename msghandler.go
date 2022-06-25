@@ -26,14 +26,8 @@ func (mh *msghandler) Handle(req Request) error {
 		return fmt.Errorf("conn [%d] not find the router for msgid %d", req.Conn().ConnId(), id)
 	}
 
-	if err := v.PreHandle(req); err != nil {
-		return fmt.Errorf("conn [%d] PreHandle Msg [%d] failed: %v", req.Conn().ConnId(), id, err)
-	}
 	if err := v.Handle(req); err != nil {
 		return fmt.Errorf("conn [%d] Handle Msg [%d] failed: %v", req.Conn().ConnId(), id, err)
-	}
-	if err := v.PostHandle(req); err != nil {
-		return fmt.Errorf("conn [%d] PostHandle Msg [%d] failed: %v", req.Conn().ConnId(), id, err)
 	}
 
 	return nil

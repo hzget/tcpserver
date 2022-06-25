@@ -31,7 +31,7 @@ func main() {
 			return
 		}
 
-		in := make([]byte, 127)
+		in := make([]byte, 256)
 		cnt, err := conn.Read(in)
 		if err == io.EOF {
 			log.Println("get EOF")

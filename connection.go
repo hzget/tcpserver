@@ -18,6 +18,7 @@ type Conn interface {
 	ConnId() uint32
 	RemoteAddr() net.Addr
 	Msghandler() MsgHandler
+	MsgChan() chan Message
 	SendMsg(msg Message) (int, error)
 }
 
@@ -26,6 +27,7 @@ type Connection struct {
 	id       uint32
 	isClosed bool
 	handler  MsgHandler
+	msgch    chan Message
 }
 
 func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
@@ -34,6 +36,7 @@ func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 		id:       id,
 		isClosed: false,
 		handler:  mhr,
+		msgch:    make(chan Message),
 	}
 }
 
@@ -63,10 +66,28 @@ func (c *Connection) startReader() {
 	}
 }
 
+func (c *Connection) startWriter() {
+	for {
+		msg, ok := <-c.msgch
+		if !ok {
+			log.Printf("conn [%d] is closed", c.ConnId())
+			return
+		}
+
+		cnt, err := c.SendMsg(msg)
+		if err != nil {
+			log.Printf("conn [%d] writer send msg failed %v", c.ConnId(), err)
+		} else {
+			log.Printf("conn [%d] writer send %d bytes msg %v", c.ConnId(), cnt, msg)
+		}
+	}
+}
+
 func (c *Connection) Start() {
 	log.Printf("conn [%d] start %s", c.ConnId(), c.RemoteAddr().String())
 	defer c.Stop()
 
+	go c.startWriter()
 	c.startReader()
 }
 
@@ -79,6 +100,7 @@ func (c *Connection) Stop() {
 
 	log.Printf("conn [%d] stop %s", c.ConnId(), c.RemoteAddr().String())
 
+	close(c.msgch)
 	c.conn.Close()
 	c.isClosed = true
 }
@@ -97,6 +119,10 @@ func (c *Connection) RemoteAddr() net.Addr {
 
 func (c *Connection) Msghandler() MsgHandler {
 	return c.handler
+}
+
+func (c *Connection) MsgChan() chan Message {
+	return c.msgch
 }
 
 func (c *Connection) SendMsg(msg Message) (int, error) {

@@ -1,10 +1,5 @@
 package tcpserver
 
-import (
-	"log"
-	"time"
-)
-
 type Router interface {
 	PreHandle(Request) error
 	Handle(Request) error
@@ -25,15 +20,12 @@ func (r *BaseRouter) PreHandle(req Request) error {
 // baserouter handle massge 1 ---> msg{101, "thank you for sending me a message"}
 func (r *BaseRouter) Handle(req Request) error {
 	conn := req.Conn()
+	// handle request
 	msg := NewMessage(101, []byte("thank you for sending me a message"))
-	cnt, err := conn.SendMsg(msg)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	log.Printf("conn [%d] BaseRouter - write %d bytes Msg %v, (data=%q)",
-		conn.ConnId(), cnt, msg, string(msg.Data()))
-	time.Sleep(time.Second)
+
+	// send response msg to writer goroutine
+	// is it okay to send to a func-returned channel?
+	conn.MsgChan() <- msg
 
 	return nil
 }
