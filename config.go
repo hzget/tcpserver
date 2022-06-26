@@ -5,14 +5,25 @@ import (
 	"log"
 )
 
+const (
+	WorkerPoolSize = 10
+	TaskQueueSize  = 20
+)
+
 type Config struct {
 	tcpserver tcpserverconf
+	app       appconf
 }
 
 type tcpserverconf struct {
 	host        string
 	port        uint32
 	maxpacksize uint32
+}
+
+type appconf struct {
+	workerpoolsize uint32
+	taskqueuesize  uint32
 }
 
 // globals
@@ -41,6 +52,10 @@ func initGlobals() {
 			port:        viper.GetUint32("tcpserver.port"),
 			maxpacksize: viper.GetUint32("tcpserver.maxpacksize"),
 		},
+		app: appconf{
+			workerpoolsize: viper.GetUint32("app.workerpoolsize"),
+			taskqueuesize:  viper.GetUint32("app.taskqueuesize"),
+		},
 	}
 
 	log.Printf("configuration is %#v", config)
@@ -50,4 +65,6 @@ func initDefault() {
 	viper.SetDefault("tcpserver.host", "tcpserver")
 	viper.SetDefault("tcpserver.port", 8080)
 	viper.SetDefault("tcpserver.maxpacksize", MaxPackSize)
+	viper.SetDefault("app.workerpoolsize", WorkerPoolSize)
+	viper.SetDefault("app.taskqueuesize", TaskQueueSize)
 }

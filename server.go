@@ -16,6 +16,7 @@ func NewServer() *Server {
 	s := &Server{
 		handler: NewMsgHandler(),
 	}
+	s.handler.StartWorkerPool()
 	s.AddBasicRouters()
 	return s
 }

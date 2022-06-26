@@ -40,6 +40,12 @@ func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 	}
 }
 
+func (c *Connection) enqueueRequest(req Request) {
+	wid := c.id % config.app.workerpoolsize
+	log.Printf("conn[%d] enqueue req to worker[%d]", c.id, wid)
+	c.handler.TaskQueue()[wid] <- req
+}
+
 func (c *Connection) startReader() {
 	p := &packer{}
 	for {
@@ -59,9 +65,13 @@ func (c *Connection) startReader() {
 
 		req := NewRequest(c, msg)
 
-		if err := c.Msghandler().Handle(req); err != nil {
-			log.Println(err)
-			break
+		if config.app.workerpoolsize > 0 {
+			c.enqueueRequest(req)
+		} else {
+			if err := c.Msghandler().Handle(req); err != nil {
+				log.Println(err)
+				break
+			}
 		}
 	}
 }
