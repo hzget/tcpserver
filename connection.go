@@ -42,7 +42,7 @@ func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 
 func (c *Connection) enqueueRequest(req Request) {
 	wid := c.id % config.app.workerpoolsize
-	log.Printf("conn[%d] enqueue req to worker[%d]", c.id, wid)
+	log.Printf("conn [%d] enqueue req to worker[%d]", c.id, wid)
 	c.handler.TaskQueue()[wid] <- req
 }
 
@@ -66,6 +66,8 @@ func (c *Connection) startReader() {
 		req := NewRequest(c, msg)
 
 		if config.app.workerpoolsize > 0 {
+			// use workerpool to avoid goroutine switch
+			// especially when there're millions of goroutines handling the request
 			c.enqueueRequest(req)
 		} else {
 			if err := c.Msghandler().Handle(req); err != nil {
