@@ -11,8 +11,7 @@ type pingRouter struct {
 func (p *pingRouter) Handle(req tcpserver.Request) error {
 	conn := req.Conn()
 	msg := tcpserver.NewMessage(102, ([]byte("ping...pong...ping...pong...")))
-	conn.MsgChan() <- msg
-
+	conn.SendMsg(msg)
 	return nil
 }
 

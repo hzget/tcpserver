@@ -18,6 +18,7 @@ type Config struct {
 type tcpserverconf struct {
 	host        string
 	port        uint32
+	maxconn     uint32
 	maxpacksize uint32
 }
 
@@ -50,6 +51,7 @@ func initGlobals() {
 		tcpserver: tcpserverconf{
 			host:        viper.GetString("tcpserver.host"),
 			port:        viper.GetUint32("tcpserver.port"),
+			maxconn:     viper.GetUint32("tcpserver.maxconn"),
 			maxpacksize: viper.GetUint32("tcpserver.maxpacksize"),
 		},
 		app: appconf{
@@ -64,6 +66,7 @@ func initGlobals() {
 func initDefault() {
 	viper.SetDefault("tcpserver.host", "tcpserver")
 	viper.SetDefault("tcpserver.port", 8080)
+	viper.SetDefault("tcpserver.maxconn", MaxConn)
 	viper.SetDefault("tcpserver.maxpacksize", MaxPackSize)
 	viper.SetDefault("app.workerpoolsize", WorkerPoolSize)
 	viper.SetDefault("app.taskqueuesize", TaskQueueSize)

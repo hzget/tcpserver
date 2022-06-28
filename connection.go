@@ -1,13 +1,16 @@
 package tcpserver
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
 const (
 	MaxPackSize = 256
+	MaxConn     = 1000
 	ReadTimeout = 3 * time.Second
 )
 
@@ -18,8 +21,7 @@ type Conn interface {
 	ConnId() uint32
 	RemoteAddr() net.Addr
 	Msghandler() MsgHandler
-	MsgChan() chan Message
-	SendMsg(msg Message) (int, error)
+	SendMsg(msg Message) error
 }
 
 type Connection struct {
@@ -28,6 +30,8 @@ type Connection struct {
 	isClosed bool
 	handler  MsgHandler
 	msgch    chan Message
+	wch      chan struct{}
+	mutex    sync.Mutex
 }
 
 func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
@@ -37,13 +41,8 @@ func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 		isClosed: false,
 		handler:  mhr,
 		msgch:    make(chan Message),
+		wch:      make(chan struct{}),
 	}
-}
-
-func (c *Connection) enqueueRequest(req Request) {
-	wid := c.id % config.app.workerpoolsize
-	log.Printf("conn [%d] enqueue req to worker[%d]", c.id, wid)
-	c.handler.TaskQueue()[wid] <- req
 }
 
 func (c *Connection) startReader() {
@@ -68,7 +67,7 @@ func (c *Connection) startReader() {
 		if config.app.workerpoolsize > 0 {
 			// use workerpool to avoid goroutine switch
 			// especially when there're millions of goroutines handling the request
-			c.enqueueRequest(req)
+			workers.EnqueueTask(req)
 		} else {
 			if err := c.Msghandler().Handle(req); err != nil {
 				log.Println(err)
@@ -78,15 +77,17 @@ func (c *Connection) startReader() {
 	}
 }
 
+// startWriter: the only method running in the writer goroutine
 func (c *Connection) startWriter() {
 	for {
 		msg, ok := <-c.msgch
 		if !ok {
-			log.Printf("conn [%d] is closed", c.ConnId())
+			log.Printf("conn [%d] msg channel is closed and empty", c.ConnId())
+			c.wch <- struct{}{}
 			return
 		}
 
-		cnt, err := c.SendMsg(msg)
+		cnt, err := c.writeMsg(msg)
 		if err != nil {
 			log.Printf("conn [%d] writer send msg failed %v", c.ConnId(), err)
 		} else {
@@ -101,18 +102,24 @@ func (c *Connection) Start() {
 
 	go c.startWriter()
 	c.startReader()
+	log.Printf("conn [%d] remove from connmgr after startReader is done", c.ConnId())
+	connmgr.Remove(c)
 }
 
 func (c *Connection) Stop() {
 
-	// add a mutex lock???
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	if c.isClosed {
 		return
 	}
 
-	log.Printf("conn [%d] stop %s", c.ConnId(), c.RemoteAddr().String())
-
+	//	connmgr.Remove(c)
+	log.Printf("conn [%d] close msg channel and consume remainings", c.ConnId())
 	close(c.msgch)
+	<-c.wch
+
+	log.Printf("conn [%d] stop connection now: %s", c.ConnId(), c.RemoteAddr().String())
 	c.conn.Close()
 	c.isClosed = true
 }
@@ -133,11 +140,22 @@ func (c *Connection) Msghandler() MsgHandler {
 	return c.handler
 }
 
-func (c *Connection) MsgChan() chan Message {
-	return c.msgch
+// SendMsg: send msg to msgch that will be
+// consumed by the writer goroutine.
+//
+// It's called by the reader goroutine
+func (c *Connection) SendMsg(msg Message) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if c.isClosed {
+		return fmt.Errorf("conn was closed and failed to send msg %v", msg)
+	}
+	c.msgch <- msg
+	return nil
 }
 
-func (c *Connection) SendMsg(msg Message) (int, error) {
+// only called by the writer goroutine
+func (c *Connection) writeMsg(msg Message) (int, error) {
 
 	p := &packer{}
 	data, err := p.Pack(msg)

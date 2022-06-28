@@ -2,21 +2,23 @@ package tcpserver
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"time"
+	"os"
+	"os/signal"
 )
 
 type Server struct {
 	handler MsgHandler
+	ln      net.Listener
+	done    chan struct{}
 }
 
 func NewServer() *Server {
 	s := &Server{
 		handler: NewMsgHandler(),
+		done:    make(chan struct{}, 2),
 	}
-	s.handler.StartWorkerPool()
 	s.AddBasicRouters()
 	return s
 }
@@ -27,12 +29,17 @@ func (s *Server) AddRouter(msgId uint32, router Router) {
 
 func (s *Server) Start() error {
 	log.Println("tcpserver is starting...")
+	defer func() {
+		log.Println("Server.Start() return and send done signal")
+		s.done <- struct{}{}
+	}()
 	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
 		config.tcpserver.host, config.tcpserver.port))
 	if err != nil {
 		log.Println(err)
 		return err
 	}
+	s.ln = ln
 	cid := uint32(1)
 
 	for {
@@ -40,7 +47,7 @@ func (s *Server) Start() error {
 		if err != nil {
 			log.Println(err)
 			// handle error
-			continue
+			return err
 		}
 		/*
 					    v1.0: handle tcpconn with a handler
@@ -51,99 +58,42 @@ func (s *Server) Start() error {
 						      and a router is registered to handle the request
 		*/
 		c := NewConnection(conn.(*net.TCPConn), cid, s.handler)
+		if err := connmgr.Add(c); err != nil {
+			continue
+		}
 		cid++
 		go c.Start()
 	}
 }
 
 func (s *Server) Serve() error {
-	return s.Start()
+	go s.Start()
+	go s.GracefullyShutdown()
+	_, _ = <-s.done, <-s.done
+	log.Println("Serve recv two done signals, close the program")
+	return nil
 }
 
-func (s *Server) Shutdown() error {
+func (s *Server) Stop() error {
+	log.Printf("tcpserver shutdown...")
+	s.ln.Close()
+	connmgr.Clear()
+	workers.Stop()
 	return nil
+}
+
+func (s *Server) GracefullyShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// Block until a signal is received.
+	sig := <-c
+	log.Println("Got signal:", sig)
+	s.Stop()
+	s.done <- struct{}{}
+	log.Println("GracefullyShutdown send done signal")
 }
 
 func (s *Server) AddBasicRouters() {
 	s.AddRouter(1, NewBaseRouter())
-}
-
-/*
- In the interactive mode (read-write-read-write-...),
- need to read all msg in the kernel read buffer via
- 1. for-loop
- 2. msg-len flag at the beginning of the msg
- 3. stop reading via eof or msg-len
-
- after that, move on and write the response.
-
-*/
-
-// echo all msg to the client
-func handleConnectionInteractive(conn net.Conn) {
-	in := make([]byte, MaxPackSize)
-	defer conn.Close()
-
-	remoteaddr := conn.RemoteAddr()
-	log.Println("get conn from:", remoteaddr.String())
-
-	for {
-		cnt, err := conn.Read(in)
-		if err == io.EOF {
-			log.Println("get EOF")
-			break
-		}
-		if err != nil {
-			log.Println(err)
-			break
-		}
-		log.Println("read", cnt, "bytes:", in[:cnt], string(in[:cnt]))
-
-		wcnt, err := conn.Write(in[:cnt])
-		if err != nil {
-			log.Println(err)
-			break
-		}
-		log.Println("write", wcnt, "bytes:", in[:wcnt], string(in[:wcnt]))
-
-		time.Sleep(1 * time.Second)
-	}
-}
-
-// echo all msg to the client
-func handleConnection(conn net.Conn) {
-	var msg []byte
-	in := make([]byte, MaxPackSize)
-	defer conn.Close()
-
-	remoteaddr := conn.RemoteAddr()
-	log.Println("get conn from:", remoteaddr.String())
-
-	// set deadline to avoid blocking on Read()
-	err := conn.SetReadDeadline(time.Now().Add(ReadTimeout))
-	if err != nil {
-		log.Println("handleConnection - SetReadDeadline failed:", err)
-		return
-	}
-
-	for {
-		cnt, err := conn.Read(in)
-		if err == io.EOF {
-			log.Println("get EOF")
-			break
-		}
-		if err != nil {
-			log.Println(err)
-			break
-		}
-		log.Println("read", cnt, "bytes:", in, string(in))
-		msg = append(msg, in[:cnt]...)
-	}
-
-	log.Println("read", len(msg), "bytes msg:", msg, string(msg))
-
-	if _, err := conn.Write(msg); err != nil {
-		log.Println(err)
-		return
-	}
 }
