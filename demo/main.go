@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"tcpserver"
 )
 
@@ -18,5 +19,11 @@ func (p *pingRouter) Handle(req tcpserver.Request) error {
 func main() {
 	s := tcpserver.NewServer()
 	s.AddRouter(2, &pingRouter{})
+	s.SetOnConnStart(func(conn tcpserver.Conn) {
+		log.Printf("conn [%d] OnConnStart hookfunc", conn.ConnId())
+	})
+	s.SetOnConnStop(func(conn tcpserver.Conn) {
+		log.Printf("conn [%d] OnConnStop hookfunc", conn.ConnId())
+	})
 	s.Serve()
 }

@@ -97,3 +97,11 @@ func (s *Server) GracefullyShutdown() {
 func (s *Server) AddBasicRouters() {
 	s.AddRouter(1, NewBaseRouter())
 }
+
+func (s *Server) SetOnConnStart(fn func(Conn)) {
+	hooks.onconnstart = fn
+}
+
+func (s *Server) SetOnConnStop(fn func(Conn)) {
+	hooks.onconnstop = fn
+}

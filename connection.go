@@ -98,6 +98,7 @@ func (c *Connection) startWriter() {
 
 func (c *Connection) Start() {
 	log.Printf("conn [%d] start %s", c.ConnId(), c.RemoteAddr().String())
+	hooks.onconnstart(c)
 	defer c.Stop()
 
 	go c.startWriter()
@@ -110,6 +111,7 @@ func (c *Connection) Stop() {
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	defer hooks.onconnstop(c)
 	if c.isClosed {
 		return
 	}
