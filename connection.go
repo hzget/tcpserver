@@ -22,6 +22,9 @@ type Conn interface {
 	RemoteAddr() net.Addr
 	Msghandler() MsgHandler
 	SendMsg(msg Message) error
+	AddProperty(key string, value interface{})
+	RemoveProperty(key string)
+	GetProperty(key string) (interface{}, error)
 }
 
 type Connection struct {
@@ -32,6 +35,8 @@ type Connection struct {
 	msgch    chan Message
 	wch      chan struct{}
 	mutex    sync.Mutex
+	property map[string]interface{}
+	pmutex   sync.RWMutex
 }
 
 func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
@@ -42,6 +47,7 @@ func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 		handler:  mhr,
 		msgch:    make(chan Message),
 		wch:      make(chan struct{}),
+		property: make(map[string]interface{}),
 	}
 }
 
@@ -172,4 +178,26 @@ func (c *Connection) writeMsg(msg Message) (int, error) {
 	}
 
 	return cnt, nil
+}
+
+func (c *Connection) AddProperty(key string, value interface{}) {
+	c.pmutex.Lock()
+	defer c.pmutex.Unlock()
+	c.property[key] = value
+}
+
+func (c *Connection) RemoveProperty(key string) {
+	c.pmutex.Lock()
+	defer c.pmutex.Unlock()
+	delete(c.property, key)
+}
+
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.pmutex.RLock()
+	defer c.pmutex.RUnlock()
+	v, ok := c.property[key]
+	if !ok {
+		return nil, fmt.Errorf("conn [%d] fail to GetProperty - %v", c.id, key)
+	}
+	return v, nil
 }
