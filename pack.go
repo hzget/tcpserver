@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 )
 
 type Packer interface {
@@ -23,14 +24,34 @@ func NewPacker() Packer {
 	return &packer{}
 }
 
+/*
+	protocol:
+
+		size means one of the following:
+			* size of msgid + msg data (default)
+			* size of msg data
+
+		controlled by config.protocol.tcpsizeadjust
+
+	--------------------------------------
+	|            tcp package             |
+	--------------------------------------
+	|   size    |   msgid   |  msg data  |
+	| (4 bytes) | (4 bytes) |            |
+	--------------------------------------
+	            | <----  raw data  ----> |
+
+*/
+
 func (*packer) PackTcp(tdata TcpData) ([]byte, error) {
 
 	if !tdata.IsValid() {
 		return nil, fmt.Errorf("fail to pack invalid tcp data %v", tdata)
 	}
 
+	size := tdata.Size() - config.protocol.tcpsizeadjust
 	buf := bytes.NewBuffer([]byte{})
-	if err := binary.Write(buf, binary.LittleEndian, tdata.Size()); err != nil {
+	if err := binary.Write(buf, binary.LittleEndian, size); err != nil {
 		return nil, err
 	}
 	if err := binary.Write(buf, binary.LittleEndian, tdata.Data()); err != nil {
@@ -51,11 +72,14 @@ func (*packer) UnPackTcp(r io.Reader) (TcpData, error) {
 		return nil, fmt.Errorf("packsize %d is too big", size)
 	}
 
+	log.Printf("unpacktcp bytes - size - %d", size)
+	size += config.protocol.tcpsizeadjust
 	var data = make([]byte, size)
 	if err := binary.Read(r, binary.LittleEndian, &data); err != nil {
 		return nil, err
 	}
 
+	log.Printf("unpacktcp bytes - data - %v", data)
 	return &tcpdata{size, data}, nil
 }
 
