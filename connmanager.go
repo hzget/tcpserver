@@ -31,6 +31,7 @@ func (mgr *connmanager) Add(conn Conn) error {
 		return fmt.Errorf("Maxconn %d is reached", config.tcpserver.maxconn)
 	}
 	mgr.conns[conn.ConnId()] = conn
+	log.Printf("connmgr Add conn [%d]", conn.ConnId())
 	return nil
 }
 

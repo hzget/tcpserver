@@ -14,6 +14,12 @@ import (
                        |   |       |    ...   |      |
    ---> reader G --->  |  taskq  taskq  ...  taskq   |
                        ------------------------------
+
+			----------       ----------       ----------
+	taskq:	|conn&msg| --->  |conn&msg| --->  |conn&msg| --->  worker
+			----------       ----------       ----------
+			    req              req              req
+
 */
 type WorkerPool interface {
 	Start()

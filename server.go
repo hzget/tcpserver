@@ -59,6 +59,7 @@ func (s *Server) Start() error {
 		*/
 		c := NewConnection(conn.(*net.TCPConn), cid, s.handler)
 		if err := connmgr.Add(c); err != nil {
+			log.Println(err)
 			continue
 		}
 		cid++
