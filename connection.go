@@ -12,6 +12,7 @@ const (
 	MaxPackSize = 256
 	MaxConn     = 1000
 	ReadTimeout = 3 * time.Second
+	MsgChSize   = 10
 )
 
 type Conn interface {
@@ -45,7 +46,7 @@ func NewConnection(conn *net.TCPConn, id uint32, mhr MsgHandler) Conn {
 		id:       id,
 		isClosed: false,
 		handler:  mhr,
-		msgch:    make(chan Message),
+		msgch:    make(chan Message, 10),
 		wch:      make(chan struct{}),
 		property: make(map[string]interface{}),
 	}
@@ -93,11 +94,11 @@ func (c *Connection) startWriter() {
 			return
 		}
 
-		cnt, err := c.writeMsg(msg)
+		_, err := c.writeMsg(msg)
 		if err != nil {
 			log.Printf("conn [%d] writer send msg failed %v", c.ConnId(), err)
 		} else {
-			log.Printf("conn [%d] writer send %d bytes msg %v", c.ConnId(), cnt, msg)
+			//log.Printf("conn [%d] writer send %d bytes msg %v", c.ConnId(), cnt, msg)
 		}
 	}
 }
@@ -171,6 +172,7 @@ func (c *Connection) writeMsg(msg Message) (int, error) {
 		return 0, err
 	}
 
+	log.Printf("conn [%d] write bytes: %v", c.id, data)
 	cnt, err := c.TCPConn().Write(data)
 	if err != nil {
 		log.Println(err)
