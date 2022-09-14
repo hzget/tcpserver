@@ -26,8 +26,24 @@ func main() {
 }
 ```
 
-The msg types and corresponding handlers are defined
-by the user.
+AddRouter() works just like Handle() and HandleFunc() in net/http package.
+
+```golang
+// in net/http package
+func Handle(pattern string, handler Handler)
+func HandleFunc(pattern string, handler func(ResponseWriter, *Request))
+
+// in this package
+func (mhr *msghandler) AddRouter(msgID uint32, r Router)
+```
+
+The msg types and corresponding routers are defined
+by the user. Router is an interface that shall be implemented
+by the user. It contains three methods:
+
+* PreHandle(Request) error
+* Handle(Request) error
+* PostHandle(Request) error
 
 ## features
 
